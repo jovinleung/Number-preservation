@@ -536,11 +536,13 @@ export default {
         
         // 生成 6 位纯数字验证码
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        // 将验证码存入 KV，设置 5 分钟后自动过期 (TTL: 300秒)
+        
+        // 【防御措施】将验证码存入 KV，并重置错误尝试次数为 0
         await env.ESIM_DB.put("admin_auth_code", code, { expirationTtl: 300 });
+        await env.ESIM_DB.put("admin_auth_attempts", "0", { expirationTtl: 300 }); 
 
         // 发送 TG 消息
-        const text = `🔐 <b>【eSIM 看板安全验证】</b>\n\n有人正在尝试登录您的网页版数据面板。\n\n您的动态登录验证码是：<code>${code}</code>\n\n<i>(该验证码 5 分钟内有效，请勿泄露)</i>`;
+        const text = `🔐 <b>【eSIM 看板安全验证】</b>\n\n有人正在尝试登录您的网页版数据面板。\n\n您的动态登录验证码是：<code>${code}</code>\n\n<i>(该验证码 5 分钟内有效。如非本人操作，请忽略，系统已开启防爆破保护)</i>`;
         const tgUrl = `https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`;
         const tgRes = await fetch(tgUrl, {
           method: "POST",
@@ -564,17 +566,32 @@ export default {
         const { code } = await request.json();
         const storedCode = await env.ESIM_DB.get("admin_auth_code");
         
+        // 【防爆破拦截】判断失败次数是否达到 5 次
+        let attempts = parseInt(await env.ESIM_DB.get("admin_auth_attempts")) || 0;
+        if (attempts >= 5) {
+            await env.ESIM_DB.delete("admin_auth_code"); // 强制销毁现有验证码
+            return new Response(JSON.stringify({ success: false, message: "错误次数过多，为保障安全，验证码已强制作废。请重新获取！" }), { status: 403, headers: corsHeaders });
+        }
+
+        if (!storedCode) {
+            return new Response(JSON.stringify({ success: false, message: "请先获取验证码或验证码已过期" }), { status: 400, headers: corsHeaders });
+        }
+        
         if (code && storedCode === code.toString()) {
-          // 验证通过，生成一个随机的长字符串作为 Token
+          // 验证通过
           const token = crypto.randomUUID();
-          // 将 Token 存入 KV，允许免密登录 30 天 (TTL: 2592000秒)
           await env.ESIM_DB.put("session_token_" + token, "valid", { expirationTtl: 2592000 });
-          // 用完立刻销毁旧验证码，防止二次利用
           await env.ESIM_DB.delete("admin_auth_code");
+          await env.ESIM_DB.delete("admin_auth_attempts"); // 清理错误计数器
           
           return new Response(JSON.stringify({ success: true, token: token }), { headers: corsHeaders });
         } else {
-          return new Response(JSON.stringify({ success: false, message: "验证码错误或已失效" }), { status: 401, headers: corsHeaders });
+          // 【防爆破惩罚】累加错误次数，并制造 1 秒钟的假延迟，大幅减缓爆破脚本的速度
+          attempts++;
+          await env.ESIM_DB.put("admin_auth_attempts", attempts.toString(), { expirationTtl: 300 });
+          await new Promise(resolve => setTimeout(resolve, 1000)); 
+          
+          return new Response(JSON.stringify({ success: false, message: `验证码错误！剩余尝试次数: ${5 - attempts} 次` }), { status: 401, headers: corsHeaders });
         }
       } catch (err) {
         return new Response(JSON.stringify({ success: false, message: "校验失败" }), { status: 500, headers: corsHeaders });
