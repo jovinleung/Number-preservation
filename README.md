@@ -54,10 +54,15 @@
 ### **步骤 2：Fork 本仓库并修改配置**
 
 1. 将本项目 **Fork** 到你自己的 GitHub 账号下。  
-2. 在你 Fork 后的仓库中，找到并编辑 wrangler.toml 文件。  
-3. 将最下方的 id \= "..." 替换为你在**步骤 1 复制的真实 KV 数据库 ID**。  
-4. 点击 Commit changes 保存修改。
+请在 GitHub 仓库的 Settings > Secrets and variables > Actions 中添加三个 Repository secrets：KV_NAMESPACE_ID (你的真实 KV ID)、CF_API_TOKEN (Cloudflare API 令牌) 和 CF_ACCOUNT_ID (Cloudflare 账户 ID)。
 
+怎么获取你的 Account ID？
+
+非常简单，登录 Cloudflare 控制台：
+
+    观察浏览器的网址栏，URL 类似这样：https://dash.cloudflare.com/1234567890abcdef1234567890abcdef/...
+
+    紧跟在 dash.cloudflare.com/ 后面的那一长串由字母和数字组成的字符（如 1234567...），就是你的 Account ID。
 ### **步骤 3：在 Cloudflare 部署**
 
 1. 在 Cloudflare 左侧菜单点击 **Workers & Pages** \-\> **Overview**。  
