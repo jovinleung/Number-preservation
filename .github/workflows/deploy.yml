@@ -1,6 +1,6 @@
 name: Deploy eSIM Tracker to Cloudflare
 
-# 这里的 on.push 设定了监听机制：只要 main 分支有任何代码更改推送，就会自动触发构建
+# 设定监听机制：只要 main 分支有任何代码更改推送，就会自动触发构建更新
 on:
   push:
     branches:
@@ -15,14 +15,32 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 如果你的 wrangler.toml 中使用的是 id = "YOUR_KV_NAMESPACE_ID" 占位符，
-      # 这一步会自动用 GitHub Secrets 里的真实 ID 替换它，防止真实 ID 泄露在代码中
-      - name: Inject KV Namespace ID
+      # 【优化点】增加强制预检机制，防止因为漏填 Secret 导致底层进程报错退出
+      - name: 🛡️ 预检 GitHub Secrets 配置
+        run: |
+          if [ -z "${{ secrets.CF_API_TOKEN }}" ]; then
+            echo "❌ 严重错误: 缺少 CF_API_TOKEN (Cloudflare API令牌)！请在 GitHub 仓库 Settings -> Secrets 中添加。"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
+            echo "❌ 严重错误: 缺少 CF_ACCOUNT_ID (Cloudflare 账户ID)！请在 GitHub 仓库 Settings -> Secrets 中添加。"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KV_NAMESPACE_ID }}" ]; then
+            echo "❌ 严重错误: 缺少 KV_NAMESPACE_ID (KV数据库ID)！请在 GitHub 仓库 Settings -> Secrets 中添加。"
+            exit 1
+          fi
+          echo "✅ 所有核心 Secrets 校验通过！准备开始部署..."
+
+      # 将 wrangler.toml 中的占位符安全替换为 GitHub Secrets 里的真实 ID
+      - name: ⚙️ 注入 KV Namespace ID
         run: sed -i "s/YOUR_KV_NAMESPACE_ID/${{ secrets.KV_NAMESPACE_ID }}/g" wrangler.toml
 
       # 执行自动部署到 Cloudflare Workers
-      - name: Deploy to Cloudflare Workers
+      - name: 🚀 Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          # 【优化点】显式声明执行的命令，提高兼容性
+          command: deploy
