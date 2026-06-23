@@ -1440,7 +1440,7 @@ export default {
           if (!tgChat) missingVars.push("TG_CHAT_ID");
           return new Response(JSON.stringify({ 
               success: false, 
-              message: \`环境缺失：缺少 \${missingVars.join(' 和 ')}。请前往 Cloudflare 的 KV 数据库中手动添加这两个键值对即可彻底解决！\` 
+              message: `环境缺失：缺少 ${missingVars.join(' 和 ')}。请前往 Cloudflare 的 KV 数据库中手动添加这两个键值对即可彻底解决！` 
           }), { status: 500, headers: corsHeaders });
         }
         
@@ -1449,8 +1449,8 @@ export default {
         await env.ESIM_DB.put("admin_auth_code", code, { expirationTtl: 300 });
         await env.ESIM_DB.put("admin_auth_attempts", "0", { expirationTtl: 300 }); 
 
-        const text = \`🔐 <b>【eSIM 看板安全验证】</b>\n\n有人正在尝试登录您的网页版数据面板。\n\n您的动态登录验证码是：<code>\${code}</code>\n\n<i>(该验证码 5 分钟内有效。如非本人操作，请忽略，系统已开启防爆破保护)</i>\`;
-        const tgUrl = \`https://api.telegram.org/bot\${tgToken}/sendMessage\`;
+        const text = `🔐 <b>【eSIM 看板安全验证】</b>\n\n有人正在尝试登录您的网页版数据面板。\n\n您的动态登录验证码是：<code>${code}</code>\n\n<i>(该验证码 5 分钟内有效。如非本人操作，请忽略，系统已开启防爆破保护)</i>`;
+        const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
         const tgRes = await fetch(tgUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1494,7 +1494,7 @@ export default {
           await env.ESIM_DB.put("admin_auth_attempts", attempts.toString(), { expirationTtl: 300 });
           await new Promise(resolve => setTimeout(resolve, 1000)); 
           
-          return new Response(JSON.stringify({ success: false, message: \`验证码错误！剩余尝试次数: \${5 - attempts} 次\` }), { status: 401, headers: corsHeaders });
+          return new Response(JSON.stringify({ success: false, message: `验证码错误！剩余尝试次数: ${5 - attempts} 次` }), { status: 401, headers: corsHeaders });
         }
       } catch (err) {
         return new Response(JSON.stringify({ success: false, message: "校验失败" }), { status: 500, headers: corsHeaders });
@@ -1658,9 +1658,9 @@ export default {
       const diffTime = expDate - localToday;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      const cycleText = sim.cycle ? \`\${sim.cycle}天\` : '未设置';
-      const remarkText = sim.remark ? \`\n📝 备注: \${sim.remark}\` : ''; 
-      const platformsText = sim.platforms ? \`\n🌐 平台: \${sim.platforms}\` : ''; 
+      const cycleText = sim.cycle ? `${sim.cycle}天` : '未设置';
+      const remarkText = sim.remark ? `\n📝 备注: ${sim.remark}` : ''; 
+      const platformsText = sim.platforms ? `\n🌐 平台: ${sim.platforms}` : ''; 
 
       // 动态解析自定义提醒规则，采用极其高效的数学推演判定算法（无需在数据库读写记录次数的脏状态）
       const advance = sim.notifyAdvance !== undefined && sim.notifyAdvance !== "" ? parseInt(sim.notifyAdvance) : 15;
@@ -1681,20 +1681,20 @@ export default {
             }
 
             if (shouldNotify) {
-                let notifyProgress = maxCount > 0 ? \` (第 \${currentCount}/\${maxCount} 次)\` : '';
-                messages.push(\`⚠️ 【eSIM 保号提醒】\${notifyProgress}\n📱 卡名: \${sim.name}\n📞 号码: \${sim.number || '未填写'}\n🔄 周期: \${cycleText}\n📅 到期: \${sim.expireDate}\${remarkText}\${platformsText}\n⏳ 剩余: \${diffDays} 天！\n👉 请尽快处理续期！\`);
+                let notifyProgress = maxCount > 0 ? ` (第 ${currentCount}/${maxCount} 次)` : '';
+                messages.push(`⚠️ 【eSIM 保号提醒】${notifyProgress}\n📱 卡名: ${sim.name}\n📞 号码: ${sim.number || '未填写'}\n🔄 周期: ${cycleText}\n📅 到期: ${sim.expireDate}${remarkText}${platformsText}\n⏳ 剩余: ${diffDays} 天！\n👉 请尽快处理续期！`);
             }
         }
       } else if (diffDays === 0) {
-        messages.push(\`🚨 【eSIM 紧急提醒】\n📱 卡名: \${sim.name} 今天到期！\${remarkText}\${platformsText}\`);
+        messages.push(`🚨 【eSIM 紧急提醒】\n📱 卡名: ${sim.name} 今天到期！${remarkText}${platformsText}`);
       } else if (diffDays < 0 && Math.abs(diffDays) % 7 === 0) {
-        messages.push(\`❌ 【eSIM 停机警告】\n📱 卡名: \${sim.name} 已过期 \${Math.abs(diffDays)} 天。\${remarkText}\${platformsText}\`);
+        messages.push(`❌ 【eSIM 停机警告】\n📱 卡名: ${sim.name} 已过期 ${Math.abs(diffDays)} 天。${remarkText}${platformsText}`);
       }
     });
 
     if (messages.length > 0 && tgToken && tgChat) {
       const text = messages.join("\n\n---\n\n");
-      const tgUrl = \`https://api.telegram.org/bot\${tgToken}/sendMessage\`;
+      const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
       await fetch(tgUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
